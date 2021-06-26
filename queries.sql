@@ -3,9 +3,6 @@ CREATE TABLE staging (
     eff_date text,
     index_alias text,
     security_alias text,
-    eff_date text,
-    index_alias text,
-    security_alias text,
     cusip text,
     ticker text,
     description text,
@@ -39,11 +36,12 @@ CREATE TABLE staging (
 );
 
 /* Copy data from csv to staging db */
-COPY staging from "/Users/aditya/Documents/Python/proj/data/universe.csv"
-DELIMITER ','
+COPY staging from '/Users/aditya/Documents/Python/proj/data/universe.csv' 
+DELIMITER ',' 
 CSV HEADER;
 
 CREATE TABLE main_table (
+    id SERIAL PRIMARY KEY,
     eff_date date,
     index_alias text,
     security_alias text,
@@ -80,7 +78,40 @@ CREATE TABLE main_table (
 );
 
 /* move to the main table */
-INSERT INTO main_table
+INSERT INTO main_table (
+    eff_date, 
+    index_alias,
+    security_alias,
+    cusip,
+    ticker,
+    description,
+    country,
+    currency,
+    coupon,
+    mat_dt,
+    rating,
+    fe_sector,
+    class_1,
+    class_2,
+    class_3,
+    class_4,
+    price,
+    moddur,
+    effdur,
+    oas,
+    ytm,
+    sdur,
+    mv_bom,
+    mv,
+    mw,
+    day_tot,
+    day_ex,
+    mtd_tot,
+    mtd_ex,
+    dc,
+    sdc,
+    mv_tot,
+    dur_cell)
     SELECT
         TO_DATE(eff_date, 'M/DD/YYYY'),
         index_alias,

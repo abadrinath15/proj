@@ -131,3 +131,7 @@ dmypy.json
 
 # Let's not include my venv
 proj_venv/
+
+
+# Nor my vscode settings files...
+.vscode/
