@@ -3,14 +3,15 @@ application name and circular loops, we'll define all the callbacks here and reg
 them
 """
 
+import datetime as dt
+from typing import Dict, Final, List, Optional, Tuple, Union
+
+import dash_html_components as html
 from dash.dependencies import Input, Output, State
-from typing import Dict, List, Optional, Tuple, Final, Union
+from dash_table.Format import Format, Scheme
+from flask_sqlalchemy import Model, SQLAlchemy
 from sqlalchemy import distinct, select
 from sqlalchemy.sql import func
-import dash_html_components as html
-from flask_sqlalchemy import Model, SQLAlchemy
-import datetime as dt
-from dash_table.Format import Format, Scheme
 
 
 def register_callbacks(app, db: SQLAlchemy, Bond: Model):
