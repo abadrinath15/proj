@@ -39,6 +39,7 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
             Output("class_label", "children"),
             Output("class_filter", "options"),
             Output("class_filter", "disabled"),
+            Output("class_filter", "value"),
         ),
         Input("date_filter", "value"),
         Input("class_type", "value"),
@@ -46,17 +47,26 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
     def update_class_for_choices(
         date_value: Optional[dt.date],
         class_type: Optional[str],
-    ) -> Tuple[html.Div, List[Dict[str, str]], bool]:
+    ) -> Tuple[html.Div, List[Dict[str, str]], bool, None]:
         if date_value is None or class_type is None:
-            return html.Label("Class value"), [], True
+            return html.Label("Class value"), [], True, None
 
         class_label, class_obj = CLASS_DICT[class_type]
         stmt = select(distinct(class_obj)).where(Bond.eff_date == date_value)
         result = db.session.execute(stmt)
-        return class_label, [{"label": x[0], "value": x[0]} for x in result], False
+        return (
+            class_label,
+            [{"label": x[0], "value": x[0]} for x in result],
+            False,
+            None,
+        )
 
     @app.callback(
-        (Output("rating_filter", "options"), Output("rating_filter", "disabled")),
+        (
+            Output("rating_filter", "options"),
+            Output("rating_filter", "disabled"),
+            Output("rating_filter", "value"),
+        ),
         Input("class_filter", "disabled"),
         Input("class_filter", "value"),
         State("date_filter", "value"),
@@ -67,9 +77,9 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         class_value: Optional[str],
         date_value: Optional[dt.datetime],
         class_choice: Optional[str],
-    ) -> Tuple[List[Dict[str, str]], bool]:
+    ) -> Tuple[List[Dict[str, str]], bool, None]:
         if class_value is None or class_filter_disabled:
-            return [], True
+            return [], True, None
         _, class_obj = CLASS_DICT[class_choice]
         stmt = select(distinct(Bond.rating)).where(
             class_obj == class_value, Bond.eff_date == date_value
@@ -77,10 +87,14 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         result = db.session.execute(stmt)
         ordered_results = [x[0] for x in result]
         ordered_results.sort(key=lambda val: RATING_ORDER[val])
-        return [{"label": x, "value": x} for x in ordered_results], False
+        return [{"label": x, "value": x} for x in ordered_results], False, None
 
     @app.callback(
-        (Output("dur_cell_filter", "options"), Output("dur_cell_filter", "disabled")),
+        (
+            Output("dur_cell_filter", "options"),
+            Output("dur_cell_filter", "disabled"),
+            Output("dur_cell_filter", "value"),
+        ),
         Input("rating_filter", "value"),
         Input("rating_filter", "disabled"),
         State("date_filter", "value"),
@@ -93,9 +107,9 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         date_value: Optional[dt.datetime],
         class_type: Optional[str],
         class_value: Optional[str],
-    ) -> Tuple[List[Dict[str, str]], bool]:
+    ) -> Tuple[List[Dict[str, str]], bool, None]:
         if rating_value is None or rating_disabled:
-            return [], True
+            return [], True, None
         _, class_obj = CLASS_DICT[class_type]
         stmt = select(distinct(Bond.dur_cell)).where(
             Bond.eff_date == date_value,
@@ -105,10 +119,27 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         result = db.session.execute(stmt)
         ordered_results = [x[0] for x in result]
         ordered_results.sort(key=lambda val: DUR_CELL_ORDER[val])
-        return [{"label": x, "value": x} for x in ordered_results], False
+        return [{"label": x, "value": x} for x in ordered_results], False, None
 
     @app.callback(
-        (Output("summary_table", "data"), Output("summary_table", "columns")),
+        Output("summary_button", "disabled"),
+        Input("dur_cell_filter", "value"),
+        Input("dur_cell_filter", "disabled"),
+    )
+    def enable_summary_button(
+        dur_cell_choice: Optional[str], dur_cell_disabled: bool
+    ) -> bool:
+        if dur_cell_disabled or dur_cell_choice is None:
+            return True
+        return False
+
+    @app.callback(
+        (
+            Output("summary_table", "data"),
+            Output("summary_table", "columns"),
+            Output("market_value", "data"),
+            Output("market_value", "columns"),
+        ),
         Input("summary_button", "n_clicks"),
         State("date_filter", "value"),
         State("class_type", "value"),
@@ -123,7 +154,12 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         class_choice: str,
         rating_value: str,
         dur_cell_value: str,
-    ) -> Tuple[List[dict[str, Union[str, int]]], List[dict]]:
+    ) -> Tuple[
+        List[dict[str, Union[str, int]]],
+        List[dict],
+        List[dict[str, Union[str, int]]],
+        List[dict],
+    ]:
         col_names = [
             "Measure",
             "Minimum",
@@ -150,6 +186,8 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                     },
                 ],
                 [{"name": x, "id": x.lower()} for x in col_names],
+                [{"market_value": "--"}],
+                [{"name": "Market value", "id": "market_value"}],
             )
         _, class_obj = CLASS_DICT[class_type]
         stmt = select(
@@ -161,7 +199,7 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
             func.avg(Bond.ytm),
             func.percentile_cont(0.5).within_group(Bond.ytm.asc()),
             func.max(Bond.ytm),
-            func.max(Bond.ytm),
+            func.sum(Bond.mv),
         ).where(
             Bond.eff_date == date_value,
             class_obj == class_choice,
@@ -195,5 +233,14 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                     "format": Format(precision=4, scheme=Scheme.fixed),
                 }
                 for x in col_names[1:]
+            ],
+            [{"market_value": result[8]}],
+            [
+                {
+                    "name": "Market value",
+                    "id": "market_value",
+                    "type": "numeric",
+                    "format": Format(precision=4, scheme=Scheme.fixed),
+                }
             ],
         )

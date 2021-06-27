@@ -89,9 +89,22 @@ def generate_summary_layout(dates: List[dt.date]):
                     ),
                 ],
             ),
+            # Spacing placeholder
+            html.Div(style={"height": "50px"}),
             html.Div(
                 [
-                    html.Button("Get summary statistics", id="summary_button"),
+                    html.Button(
+                        "Get summary statistics",
+                        id="summary_button",
+                        style={"height": "50px", "width": "100px"},
+                    ),
+                    html.Div(
+                        DataTable(
+                            id="market_value",
+                            columns=[{"name": "Market value", "id": "market_value"}],
+                        ),
+                        style={"width": COMPONENT_WIDTH},
+                    ),
                     DataTable(
                         id="summary_table",
                         columns=[
