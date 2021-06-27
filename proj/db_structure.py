@@ -8,8 +8,6 @@ def build_bond(db: SQLAlchemy) -> Model:
         SQLAlchemy db object representing the bond universe; only columns as needed
         are modelled
 
-        Args:
-            db ([type]): [description]
         """
 
         __tablename__ = "main_table"
@@ -21,6 +19,8 @@ def build_bond(db: SQLAlchemy) -> Model:
         class_4 = db.Column(db.String, nullable=False)
         rating = db.Column(db.String, nullable=False)
         dur_cell = db.Column(db.String, nullable=False)
+        oas = db.Column(db.Numeric, nullable=False)
+        ytm = db.Column(db.Numeric, nullable=False)
 
         def __init__(
             self, u_id, eff_date, class_1, class_2, class_3, class_4, rating, dur_cell

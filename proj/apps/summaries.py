@@ -4,6 +4,7 @@ only have one tab.
 
 import dash_core_components as dcc
 import dash_html_components as html
+from dash_table import DataTable
 from typing import Final, List
 import datetime as dt
 
@@ -36,7 +37,7 @@ def generate_summary_layout(dates: List[dt.date]):
                         [
                             html.Label("Class option"),
                             dcc.Dropdown(
-                                id="class_choice",
+                                id="class_type",
                                 options=[
                                     {
                                         "label": "Class 1",
@@ -63,7 +64,7 @@ def generate_summary_layout(dates: List[dt.date]):
                     html.Div(
                         [
                             html.Div(id="class_label"),
-                            dcc.Dropdown(id="class_values"),
+                            dcc.Dropdown(id="class_filter"),
                         ],
                         style={"width": COMPONENT_WIDTH, "display": "inline-block"},
                     ),
@@ -87,6 +88,24 @@ def generate_summary_layout(dates: List[dt.date]):
                         style={"width": COMPONENT_WIDTH, "display": "inline-block"},
                     ),
                 ],
+            ),
+            html.Div(
+                [
+                    html.Button("Get summary statistics", id="summary_button"),
+                    DataTable(
+                        id="summary_table",
+                        columns=[
+                            {"name": x, "id": x.lower()}
+                            for x in [
+                                "Measure",
+                                "Minimum",
+                                "Average",
+                                "Median",
+                                "Maximum",
+                            ]
+                        ],
+                    ),
+                ]
             ),
         ]
     )
