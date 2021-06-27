@@ -135,3 +135,7 @@ proj_venv/
 
 # Nor my vscode settings files...
 .vscode/
+
+.DS_Store
+.env
+*.pyc
