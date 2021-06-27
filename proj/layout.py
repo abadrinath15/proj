@@ -1,21 +1,15 @@
-"""This module will organize the layout for the application; at present I'll presume to 
+"""This module will organize the layout for the application; at present I'll presume to
 only have one tab.
 """
-import dash_html_components as html
+
 import dash_core_components as dcc
-from db_connect import app, Bond, db
-from dash.dependencies import Input, Output, State
-from sqlalchemy import select, distinct
-from typing import Tuple, Dict, List, Optional, Final
+import dash_html_components as html
+from typing import Final
+
 
 PLACEHOLDER_WIDTH: Final = "2%"
 COMPONENT_WIDTH: Final = "23%"
-CLASS_DICT: Final = {
-    "class_1": [html.Label("Class 1 choice"), Bond.class_1],
-    "class_2": [html.Label("Class 2 choice"), Bond.class_2],
-    "class_3": [html.Label("Class 3 choice"), Bond.class_3],
-    "class_4": [html.Label("Class 4 choice"), Bond.class_4],
-}
+
 
 layout = html.Div(
     [
@@ -71,40 +65,3 @@ layout = html.Div(
         ),
     ]
 )
-
-
-@app.callback(
-    (
-        Output("class_label", "children"),
-        Output("class_values", "options"),
-        Output("class_values", "disabled"),
-    ),
-    Input("class_choice", "value"),
-)
-def update_class_for_choices(
-    class_choice: Optional[str],
-) -> Tuple[html.Div, List[Dict[str, str]], bool]:
-    if class_choice is None or class_choice == "":
-        return html.Label("Class value"), [], True
-
-    class_label, class_obj = CLASS_DICT[class_choice]
-    stmt = select(distinct(class_obj))
-    result = db.session.execute(stmt)
-    return class_label, [{"label": x[0], "value": x[0]} for x in result], False
-
-
-@app.callback(
-    (Output("rating_filter", "options"), Output("rating_filter", "disabled")),
-    Input("class_values", "value"),
-    State("class_choice", "value"),
-)
-def update_rating_filter(
-    class_value: Optional[str],
-    class_choice: Optional[str],
-) -> Tuple[List[Dict[str, str]], bool]:
-    if class_value is None or class_value == "":
-        return [], True
-    _, class_obj = CLASS_DICT[class_choice]
-    stmt = select(distinct(Bond.rating)).where(class_obj == class_value)
-    result = db.session.execute(stmt)
-    return [{"label": x[0], "value": x[0]} for x in result], False
