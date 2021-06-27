@@ -3,9 +3,10 @@
 import dash
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from layout import layout
+from sqlalchemy import distinct, select
+from apps.summaries import generate_summary_layout
 from callbacks import register_callbacks
-from db_connect import build_bond
+from db_structure import build_bond
 
 # Create the dash app
 server = Flask(__name__)
@@ -18,8 +19,11 @@ app.server.config[
 ] = "postgresql://aditya:postgres@localhost/bond_universe"
 
 db = SQLAlchemy(app.server)
-app.layout = layout
 Bond = build_bond(db)
+# Dates are independent of user input, so we'll go ahead and get that done now
+stmt = select(distinct(Bond.eff_date))
+result = db.session.execute(stmt)
+app.layout = generate_summary_layout(sorted([x[0] for x in result]))
 register_callbacks(app, db, Bond)
 
 if __name__ == "__main__":
