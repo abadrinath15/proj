@@ -9,6 +9,7 @@ from apps.summaries import generate_summary_layout
 from callbacks import register_callbacks
 from db_structure import build_bond
 import os
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,7 +20,10 @@ app = dash.Dash(name=__name__, server=server, suppress_callback_exceptions=True)
 app.server.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Connection for a local postgres test table
-app.server.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+uri = os.environ.get("DATABASE_URL")
+if uri.startswith("postgres://"):
+    uri = uri.replace("postgres://", "postgresql://", 1)
+app.server.config["SQLALCHEMY_DATABASE_URI"] = uri
 db = SQLAlchemy(app.server)
 Bond = build_bond(db)
 # Dates are independent of user input, so we'll go ahead and get that done now
