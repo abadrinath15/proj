@@ -1,5 +1,5 @@
 """This module connects the code for connecting to the PostgreSql server."""
-from flask_sqlalchemy import SQLAlchemy, Model
+from flask_sqlalchemy import Model, SQLAlchemy
 
 
 def build_bond(db: SQLAlchemy) -> Model:

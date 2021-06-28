@@ -2,18 +2,20 @@
 only have one tab.
 """
 
+import datetime as dt
+from typing import Final, List
+
 import dash_core_components as dcc
 import dash_html_components as html
 from dash_table import DataTable
-from typing import Final, List
-import datetime as dt
-
 
 PLACEHOLDER_WIDTH: Final = "2%"
 COMPONENT_WIDTH: Final = "18%"
 
 
-def generate_summary_layout(dates: List[dt.date]):
+def generate_summary_layout(
+    dates: List[dt.date], ratings: List[str], dur_cells: List[str]
+):
     layout = html.Div(
         [
             html.H1("Bond summary and optimization tool"),
@@ -25,6 +27,8 @@ def generate_summary_layout(dates: List[dt.date]):
                             dcc.Dropdown(
                                 id="date_filter",
                                 options=[{"label": x, "value": x} for x in dates],
+                                value=dates[0],
+                                clearable=False,
                             ),
                         ],
                         style={"width": COMPONENT_WIDTH, "display": "inline-block"},
@@ -64,7 +68,7 @@ def generate_summary_layout(dates: List[dt.date]):
                     html.Div(
                         [
                             html.Div(id="class_label"),
-                            dcc.Dropdown(id="class_filter"),
+                            dcc.Dropdown(id="class_filter", multi=True),
                         ],
                         style={"width": COMPONENT_WIDTH, "display": "inline-block"},
                     ),
@@ -73,7 +77,17 @@ def generate_summary_layout(dates: List[dt.date]):
                         style={"width": PLACEHOLDER_WIDTH, "display": "inline-block"}
                     ),
                     html.Div(
-                        [html.Label("Rating filter"), dcc.Dropdown(id="rating_filter")],
+                        [
+                            html.Label("Rating filter"),
+                            dcc.Dropdown(
+                                id="rating_filter",
+                                options=[
+                                    {"label": rating, "value": rating}
+                                    for rating in ratings
+                                ],
+                                multi=True,
+                            ),
+                        ],
                         style={"width": COMPONENT_WIDTH, "display": "inline-block"},
                     ),
                     # Spacing placeholder
@@ -83,7 +97,14 @@ def generate_summary_layout(dates: List[dt.date]):
                     html.Div(
                         [
                             html.Label("Dur cell filter"),
-                            dcc.Dropdown(id="dur_cell_filter"),
+                            dcc.Dropdown(
+                                id="dur_cell_filter",
+                                options=[
+                                    {"label": dur_cell, "value": dur_cell}
+                                    for dur_cell in dur_cells
+                                ],
+                                multi=True,
+                            ),
                         ],
                         style={"width": COMPONENT_WIDTH, "display": "inline-block"},
                     ),

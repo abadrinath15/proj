@@ -1,5 +1,5 @@
 """In order to avoid concers that we're going to certainly have with the flask
-application name and circular loops, we'll define all the callbacks here and register 
+application name and circular loops, we'll define all the callbacks here and register
 them
 """
 
@@ -8,9 +8,10 @@ from typing import Dict, Final, List, Optional, Tuple, Union
 
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
+from dash_table import FormatTemplate
 from dash_table.Format import Format, Scheme
 from flask_sqlalchemy import Model, SQLAlchemy
-from sqlalchemy import distinct, select
+from sqlalchemy import distinct, select, true
 from sqlalchemy.sql import func
 
 
@@ -21,18 +22,7 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         "class_2": [html.Label("Class 2 choice"), Bond.class_2],
         "class_3": [html.Label("Class 3 choice"), Bond.class_3],
         "class_4": [html.Label("Class 4 choice"), Bond.class_4],
-    }
-    # rating and dur_cell if sorted naturally (alphabetically) are really ugly; we'll
-    # define a formal sort order for both and reference them. The ceaveat to that is
-    # these would need to be maintained manually...
-    RATING_ORDER: Final = {"AAA": 0, "AA": 1, "A": 2, "BBB": 3}
-    DUR_CELL_ORDER: Final = {
-        "0to3": 0,
-        "3to5": 1,
-        "5to8": 2,
-        "8to10": 3,
-        "10to15": 4,
-        "15+": 5,
+        None: [None, None],
     }
 
     @app.callback(
@@ -46,10 +36,10 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         Input("class_type", "value"),
     )
     def update_class_for_choices(
-        date_value: Optional[dt.date],
+        date_value: dt.date,
         class_type: Optional[str],
     ) -> Tuple[html.Div, List[Dict[str, str]], bool, None]:
-        if date_value is None or class_type is None:
+        if class_type is None:
             return html.Label("Class value"), [], True, None
 
         class_label, class_obj = CLASS_DICT[class_type]
@@ -61,78 +51,6 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
             False,
             None,
         )
-
-    @app.callback(
-        (
-            Output("rating_filter", "options"),
-            Output("rating_filter", "disabled"),
-            Output("rating_filter", "value"),
-        ),
-        Input("class_filter", "disabled"),
-        Input("class_filter", "value"),
-        State("date_filter", "value"),
-        State("class_type", "value"),
-    )
-    def update_rating_filter(
-        class_filter_disabled: bool,
-        class_value: Optional[str],
-        date_value: Optional[dt.datetime],
-        class_choice: Optional[str],
-    ) -> Tuple[List[Dict[str, str]], bool, None]:
-        if class_value is None or class_filter_disabled:
-            return [], True, None
-        _, class_obj = CLASS_DICT[class_choice]
-        stmt = select(distinct(Bond.rating)).where(
-            class_obj == class_value, Bond.eff_date == date_value
-        )
-        result = db.session.execute(stmt)
-        ordered_results = [x[0] for x in result]
-        ordered_results.sort(key=lambda val: RATING_ORDER[val])
-        return [{"label": x, "value": x} for x in ordered_results], False, None
-
-    @app.callback(
-        (
-            Output("dur_cell_filter", "options"),
-            Output("dur_cell_filter", "disabled"),
-            Output("dur_cell_filter", "value"),
-        ),
-        Input("rating_filter", "value"),
-        Input("rating_filter", "disabled"),
-        State("date_filter", "value"),
-        State("class_type", "value"),
-        State("class_filter", "value"),
-    )
-    def update_dur_cell_filter(
-        rating_value: Optional[str],
-        rating_disabled: Optional[str],
-        date_value: Optional[dt.datetime],
-        class_type: Optional[str],
-        class_value: Optional[str],
-    ) -> Tuple[List[Dict[str, str]], bool, None]:
-        if rating_value is None or rating_disabled:
-            return [], True, None
-        _, class_obj = CLASS_DICT[class_type]
-        stmt = select(distinct(Bond.dur_cell)).where(
-            Bond.eff_date == date_value,
-            class_obj == class_value,
-            Bond.rating == rating_value,
-        )
-        result = db.session.execute(stmt)
-        ordered_results = [x[0] for x in result]
-        ordered_results.sort(key=lambda val: DUR_CELL_ORDER[val])
-        return [{"label": x, "value": x} for x in ordered_results], False, None
-
-    @app.callback(
-        Output("summary_button", "disabled"),
-        Input("dur_cell_filter", "value"),
-        Input("dur_cell_filter", "disabled"),
-    )
-    def enable_summary_button(
-        dur_cell_choice: Optional[str], dur_cell_disabled: bool
-    ) -> bool:
-        if dur_cell_disabled or dur_cell_choice is None:
-            return True
-        return False
 
     @app.callback(
         (
@@ -151,10 +69,10 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
     def update_summary_table(
         num_clicks: Optional[int],
         date_value: dt.datetime,
-        class_type: str,
-        class_choice: str,
-        rating_value: str,
-        dur_cell_value: str,
+        class_type: Optional[str],
+        class_choices: Optional[List[str]],
+        rating_values: Optional[List[str]],
+        dur_cell_values: Optional[List[str]],
     ) -> Tuple[
         List[dict[str, Union[str, int]]],
         List[dict],
@@ -191,6 +109,14 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                 [{"name": "Market value", "id": "market_value"}],
             )
         _, class_obj = CLASS_DICT[class_type]
+        where_clauses = [
+            Bond.eff_date == date_value,
+            true()
+            if any([class_obj is None, not class_choices])
+            else class_obj.in_(class_choices),
+            true() if not rating_values else Bond.rating.in_(rating_values),
+            true() if not dur_cell_values else Bond.dur_cell.in_(dur_cell_values),
+        ]
         stmt = select(
             func.min(Bond.oas),
             func.avg(Bond.oas),
@@ -201,12 +127,7 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
             func.percentile_cont(0.5).within_group(Bond.ytm.asc()),
             func.max(Bond.ytm),
             func.sum(Bond.mv),
-        ).where(
-            Bond.eff_date == date_value,
-            class_obj == class_choice,
-            Bond.rating == rating_value,
-            Bond.dur_cell == dur_cell_value,
-        )
+        ).where(*where_clauses)
         result = list(db.session.execute(stmt))[0]
         return (
             [
@@ -241,7 +162,7 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                     "name": "Market value",
                     "id": "market_value",
                     "type": "numeric",
-                    "format": Format(precision=4, scheme=Scheme.fixed),
+                    "format": FormatTemplate.money(2),
                 }
             ],
         )
