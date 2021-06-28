@@ -121,8 +121,11 @@ def generate_summary_layout(
                     ),
                     html.Div(
                         DataTable(
-                            id="market_value",
-                            columns=[{"name": "Market value", "id": "market_value"}],
+                            id="mv_num_bonds",
+                            columns=[
+                                {"name": "Number of bonds", "id": "num_bonds"},
+                                {"name": "Market value", "id": "market_value"},
+                            ],
                         ),
                         style={"width": COMPONENT_WIDTH},
                     ),

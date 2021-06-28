@@ -56,8 +56,8 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         (
             Output("summary_table", "data"),
             Output("summary_table", "columns"),
-            Output("market_value", "data"),
-            Output("market_value", "columns"),
+            Output("mv_num_bonds", "data"),
+            Output("mv_num_bonds", "columns"),
         ),
         Input("summary_button", "n_clicks"),
         State("date_filter", "value"),
@@ -105,8 +105,11 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                     },
                 ],
                 [{"name": x, "id": x.lower()} for x in col_names],
-                [{"market_value": "--"}],
-                [{"name": "Market value", "id": "market_value"}],
+                [{"num_bonds": "--", "market_value": "--"}],
+                [
+                    {"name": "Number of bonds", "id": "num_bonds"},
+                    {"name": "Market value", "id": "market_value"},
+                ],
             )
         _, class_obj = CLASS_DICT[class_type]
         where_clauses = [
@@ -127,6 +130,7 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
             func.percentile_cont(0.5).within_group(Bond.ytm.asc()),
             func.max(Bond.ytm),
             func.sum(Bond.mv),
+            func.count(Bond.mv),
         ).where(*where_clauses)
         result = list(db.session.execute(stmt))[0]
         return (
@@ -156,13 +160,19 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                 }
                 for x in col_names[1:]
             ],
-            [{"market_value": result[8]}],
+            [{"num_bonds": result[9], "market_value": result[8]}],
             [
+                {
+                    "name": "Number of bonds",
+                    "id": "num_bonds",
+                    "type": "numeric",
+                    "format": Format(group=","),
+                },
                 {
                     "name": "Market value",
                     "id": "market_value",
                     "type": "numeric",
                     "format": FormatTemplate.money(2),
-                }
+                },
             ],
         )
