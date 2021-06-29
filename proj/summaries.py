@@ -147,11 +147,6 @@ def generate_summary_layout(
             html.Div(style={"height": "50px"}),
             html.Div(
                 [
-                    html.Button(
-                        "Get summary statistics",
-                        id="summary_button",
-                        style={"height": "50px", "width": "100px"},
-                    ),
                     html.Div(
                         DataTable(
                             id="mv_num_bonds",
@@ -209,7 +204,7 @@ def generate_summary_layout(
                                         {"label": "OAS", "value": "oas"},
                                         {"label": "YTM", "value": "ytm"},
                                     ],
-                                    value="OAS",
+                                    value="oas",
                                     style={"width": "100px", "height": "50px"},
                                 ),
                                 width=OPT_COL_WIDTH,
@@ -228,12 +223,13 @@ def generate_summary_layout(
                             ),
                             dbc.Col(
                                 dbc.Input(
-                                    id="duration_bound",
+                                    id="duration_target",
                                     type="number",
                                     min=3,
                                     max=7,
                                     value=5,
                                     step=0.1,
+                                    required=True,
                                 ),
                                 width=OPT_COL_WIDTH,
                             ),
@@ -245,6 +241,7 @@ def generate_summary_layout(
                                     max=0.50,
                                     value=0.35,
                                     step=0.01,
+                                    required=True,
                                 ),
                                 width=OPT_COL_WIDTH,
                             ),
@@ -253,7 +250,7 @@ def generate_summary_layout(
                 ]
             ),
             # Vertical spacing placeholder
-            html.Div(style={"height": "50px"}),
+            html.Div(style={"height": "30px"}),
             html.Div(
                 [
                     html.Button(
@@ -265,14 +262,59 @@ def generate_summary_layout(
                         DataTable(
                             id="opt_summary",
                             columns=[
-                                {"name": "Measure", "id": "opt_res_measure"},
                                 {"name": "Result", "id": "opt_res"},
+                                {"name": "Cash weight", "id": "cash_wt"},
                             ],
                         ),
                         style={"width": SUMMARY_COMPONENT_WIDTH},
                     ),
+                ],
+            ),
+            # Vertical spacing placeholder
+            html.Div(style={"height": "30px"}),
+            html.Div(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(html.Label("Industrials Results")),
+                            dbc.Col(html.Label("Financials Results")),
+                            dbc.Col(html.Label("Utilities Results")),
+                        ]
+                    ),
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                DataTable(
+                                    id="industrial_results",
+                                    columns=[
+                                        {"name": "Cusip", "id": "ind_cusip"},
+                                        {"name": "Weight", "id": "ind_wt"},
+                                    ],
+                                )
+                            ),
+                            dbc.Col(
+                                DataTable(
+                                    id="financials_results",
+                                    columns=[
+                                        {"name": "Cusip", "id": "fin_cusip"},
+                                        {"name": "Weight", "id": "fin_wt"},
+                                    ],
+                                )
+                            ),
+                            dbc.Col(
+                                DataTable(
+                                    id="utility_results",
+                                    columns=[
+                                        {"name": "Cusip", "id": "utl_cusip"},
+                                        {"name": "Weight", "id": "utl_wt"},
+                                    ],
+                                )
+                            ),
+                        ]
+                    ),
                 ]
             ),
-        ]
+        ],
+        style={"marginLeft": 5, "width": "95%"},
     )
     return layout

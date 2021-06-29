@@ -23,6 +23,7 @@ def build_bond(db: SQLAlchemy) -> Model:
         ytm = db.Column(db.Numeric, nullable=False)
         mv = db.Column(db.Numeric, nullable=False)
         effdur = db.Column(db.Numeric, nullable=False)
+        cusip = db.Column(db.String, nullable=False)
 
         def __init__(
             self,

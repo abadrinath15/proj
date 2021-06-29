@@ -5,7 +5,7 @@ them
 
 import datetime as dt
 from typing import Dict, Final, List, Optional, Tuple, Union
-
+import pandas as pd
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash_table import FormatTemplate
@@ -13,6 +13,8 @@ from dash_table.Format import Format, Scheme
 from flask_sqlalchemy import Model, SQLAlchemy
 from sqlalchemy import distinct, select, true
 from sqlalchemy.sql import func
+from itertools import chain
+from optimization import do_optimization
 
 
 def register_callbacks(app, db: SQLAlchemy, Bond: Model):
@@ -59,20 +61,18 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
             Output("mv_num_bonds", "data"),
             Output("mv_num_bonds", "columns"),
         ),
-        Input("summary_button", "n_clicks"),
-        State("date_filter", "value"),
+        Input("date_filter", "value"),
+        Input("class_filter", "value"),
+        Input("rating_filter", "value"),
+        Input("dur_cell_filter", "value"),
         State("class_type", "value"),
-        State("class_filter", "value"),
-        State("rating_filter", "value"),
-        State("dur_cell_filter", "value"),
     )
     def update_summary_table(
-        num_clicks: Optional[int],
         date_value: dt.datetime,
-        class_type: Optional[str],
-        class_choices: Optional[List[str]],
+        class_values: Optional[List[str]],
         rating_values: Optional[List[str]],
         dur_cell_values: Optional[List[str]],
+        class_type: Optional[str],
     ) -> Tuple[
         List[dict[str, Union[str, int]]],
         List[dict],
@@ -86,37 +86,12 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
             "Median",
             "Maximum",
         ]
-        if num_clicks is None or num_clicks == 0:
-            return (
-                [
-                    {
-                        "measure": "OAS",
-                        "minimum": "--",
-                        "average": "--",
-                        "median": "--",
-                        "maximum": "--",
-                    },
-                    {
-                        "measure": "YTM",
-                        "minimum": "--",
-                        "average": "--",
-                        "median": "--",
-                        "maximum": "--",
-                    },
-                ],
-                [{"name": x, "id": x.lower()} for x in col_names],
-                [{"num_bonds": "--", "market_value": "--"}],
-                [
-                    {"name": "Number of bonds", "id": "num_bonds"},
-                    {"name": "Market value", "id": "market_value"},
-                ],
-            )
         _, class_obj = CLASS_DICT[class_type]
         where_clauses = [
             Bond.eff_date == date_value,
             true()
-            if any([class_obj is None, not class_choices])
-            else class_obj.in_(class_choices),
+            if any([class_obj is None, not class_values])
+            else class_obj.in_(class_values),
             true() if not rating_values else Bond.rating.in_(rating_values),
             true() if not dur_cell_values else Bond.dur_cell.in_(dur_cell_values),
         ]
@@ -175,4 +150,154 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                     "format": FormatTemplate.money(2),
                 },
             ],
+        )
+
+    @app.callback(
+        Output("opt_button", "disabled"),
+        Input("duration_target", "value"),
+        Input("sector_limit", "value"),
+    )
+    def enable_opt_button(
+        duration_target: Optional[float], sector_limit: Optional[float]
+    ) -> bool:
+        if duration_target is None or sector_limit is None:
+            return True
+        return False
+
+    @app.callback(
+        (
+            Output("opt_summary", "data"),
+            Output("industrial_results", "data"),
+            Output("financials_results", "data"),
+            Output("utility_results", "data"),
+        ),
+        Input("opt_button", "n_clicks"),
+        State("date_filter", "value"),
+        State("class_type", "value"),
+        State("class_filter", "value"),
+        State("rating_filter", "value"),
+        State("dur_cell_filter", "value"),
+        State("opt_metric", "value"),
+        State("sec_bound", "value"),
+        State("duration_target", "value"),
+        State("sector_limit", "value"),
+    )
+    def populate_optimization_results(
+        n_clicks: Optional[int],
+        date_value: dt.date,
+        class_type: str,
+        class_values: Optional[List[str]],
+        rating_values: Optional[List[str]],
+        dur_cell_values: Optional[List[str]],
+        opt_metric: str,
+        sec_bound: float,
+        duration_bound: float,
+        sector_limit: float,
+    ) -> Tuple[
+        List[Dict[str, Union[str, float]]],
+        List[Dict[str, Union[str, float]]],
+        List[Dict[str, Union[str, float]]],
+        List[Dict[str, Union[str, float]]],
+    ]:
+        if n_clicks is None or n_clicks == 0:
+            return (
+                [{"opt_res": "--", "cash_wt": "--"}],
+                [{"ind_cusip": "--", "ind_wt": "--"}],
+                [{"fin_cusip": "--", "fin_wt": "--"}],
+                [{"utl_cusip": "--", "utl_wt": "--"}],
+            )
+        _, class_obj = CLASS_DICT[class_type]
+        where_clauses = [
+            Bond.eff_date == date_value,
+            true()
+            if any([class_obj is None, not class_values])
+            else class_obj.in_(class_values),
+            true() if not rating_values else Bond.rating.in_(rating_values),
+            true() if not dur_cell_values else Bond.dur_cell.in_(dur_cell_values),
+        ]
+        stmt = select(
+            Bond.cusip,
+            Bond.oas,
+            Bond.ytm,
+            Bond.class_2,
+            Bond.effdur,
+        ).where(*where_clauses)
+        try:
+            result = list(db.session.execute(stmt))
+        except IndexError:
+            return (
+                [{"opt_res": "0", "cash_wt": 1}],
+                [{"ind_cusip": "--", "ind_wt": "--"}],
+                [{"fin_cusip": "--", "fin_wt": "--"}],
+                [{"utl_cusip": "--", "utl_wt": "--"}],
+            )
+        df = pd.DataFrame(
+            result,
+            columns=["cusip", "oas", "ytm", "class_2", "effdur"],
+        )
+        df["oas"] = df["oas"].astype("float")
+        df["ytm"] = df["ytm"].astype("float")
+        df["effdur"] = df["effdur"].astype("float")
+        industrial_df = df[df["class_2"] == "INDUSTRIAL"]
+        financial_df = df[df["class_2"] == "FINANCIAL"]
+        utility_df = df[df["class_2"] == "UTILITY"]
+
+        opt_results = do_optimization(
+            industrial_df,
+            financial_df,
+            utility_df,
+            sec_bound,
+            duration_bound,
+            sector_limit,
+            opt_metric,
+        )
+        if opt_results is None:
+            return (
+                [{"opt_res": "Infeasible", "cash_wt": "--"}],
+                [{"ind_cusip": "--", "ind_wt": "--"}],
+                [{"fin_cusip": "--", "fin_wt": "--"}],
+                [{"utl_cusip": "--", "utl_wt": "--"}],
+            )
+        res_max, cusip_wts = opt_results
+        cusip_wts = pd.DataFrame(cusip_wts, columns=["cusip", "wts"]).set_index("cusip")
+
+        def get_sector_wts(
+            sector_df: pd.DataFrame,
+            cusip_col: str,
+            wt_col: str,
+        ) -> pd.DataFrame:
+            res_df = (
+                sector_df.set_index("cusip")
+                .join(cusip_wts)[["wts"]]
+                .query("""wts > 0""")
+                .sort_values("wts", ascending=False)
+                .reset_index()
+                .rename(columns={"cusip": cusip_col, "wts": wt_col})
+            )
+            return res_df.append(
+                pd.Series(["Total", res_df[wt_col].sum()], index=res_df.columns),
+                ignore_index=True,
+            )
+
+        industrial_res, financial_res, utility_res = [
+            get_sector_wts(sector_df, cusip_col, wt_col)
+            for sector_df, cusip_col, wt_col in zip(
+                [industrial_df, financial_df, utility_df],
+                ["ind_cusip", "fin_cusip", "utl_cusip"],
+                ["ind_wt", "fin_wt", "utl_wt"],
+            )
+        ]
+
+        cash_wt = 1 - sum(
+            [
+                industrial_res.iloc[-1]["ind_wt"],
+                financial_res.iloc[-1]["fin_wt"],
+                utility_res.iloc[-1]["utl_wt"],
+            ]
+        )
+        return (
+            [{"opt_res": res_max, "cash_wt": cash_wt}],
+            industrial_res.to_dict("records"),
+            financial_res.to_dict("records"),
+            utility_res.to_dict("records"),
         )
