@@ -22,6 +22,7 @@ def generate_summary_layout(
     layout = html.Div(
         [
             html.H1("Bond summary and optimization tool"),
+            # Vertical spacing placeholder
             html.Div(style={"height": "50px"}),
             html.H3("Bond selections for summary and optimizations"),
             html.Div(
@@ -208,6 +209,7 @@ def generate_summary_layout(
                                         {"label": "OAS", "value": "oas"},
                                         {"label": "YTM", "value": "ytm"},
                                     ],
+                                    value="OAS",
                                     style={"width": "100px", "height": "50px"},
                                 ),
                                 width=OPT_COL_WIDTH,
@@ -247,6 +249,27 @@ def generate_summary_layout(
                                 width=OPT_COL_WIDTH,
                             ),
                         ],
+                    ),
+                ]
+            ),
+            # Vertical spacing placeholder
+            html.Div(style={"height": "50px"}),
+            html.Div(
+                [
+                    html.Button(
+                        "Perform optimization",
+                        id="opt_button",
+                        style={"height": "50px", "width": "100px"},
+                    ),
+                    html.Div(
+                        DataTable(
+                            id="opt_summary",
+                            columns=[
+                                {"name": "Measure", "id": "opt_res_measure"},
+                                {"name": "Result", "id": "opt_res"},
+                            ],
+                        ),
+                        style={"width": SUMMARY_COMPONENT_WIDTH},
                     ),
                 ]
             ),
