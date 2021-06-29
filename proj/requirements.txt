@@ -1,3 +1,4 @@
+amply==0.1.4
 anyio==3.2.1
 appdirs==1.4.4
 appnope==0.1.2
@@ -21,6 +22,7 @@ dash-renderer==1.9.1
 dash-table==4.11.3
 decorator==5.0.9
 defusedxml==0.7.1
+docutils==0.17.1
 entrypoints==0.3
 Flask==2.0.1
 Flask-Compress==1.10.1
@@ -72,6 +74,7 @@ prometheus-client==0.11.0
 prompt-toolkit==3.0.19
 psycopg2==2.9.1
 ptyprocess==0.7.0
+PuLP==2.4
 pycparser==2.20
 Pygments==2.9.0
 pylint==3.0.0a3

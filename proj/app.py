@@ -8,8 +8,9 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import distinct, select
+import dash_bootstrap_components as dbc
 
-from apps.summaries import generate_summary_layout
+from summaries import generate_summary_layout
 from callbacks import register_callbacks
 from db_structure import build_bond
 
@@ -17,7 +18,12 @@ load_dotenv()
 
 # Create the dash app
 server = Flask(__name__)
-app = dash.Dash(name=__name__, server=server, suppress_callback_exceptions=True)
+app = dash.Dash(
+    name=__name__,
+    server=server,
+    suppress_callback_exceptions=True,
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
+)
 app.server.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Connection for a local postgres test table
