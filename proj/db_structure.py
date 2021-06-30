@@ -24,6 +24,8 @@ def build_bond(db: SQLAlchemy) -> Model:
         mv = db.Column(db.Numeric, nullable=False)
         effdur = db.Column(db.Numeric, nullable=False)
         cusip = db.Column(db.String, nullable=False)
+        ticker = db.Column(db.String, nullable=False)
+        mat_dt = db.Column(db.String, nullable=False)
 
         def __init__(
             self,
@@ -37,6 +39,9 @@ def build_bond(db: SQLAlchemy) -> Model:
             dur_cell,
             mv,
             effdur,
+            cusip,
+            ticker,
+            mat_dt,
         ) -> None:
             self.u_id = u_id
             self.eff_date = eff_date
@@ -48,5 +53,8 @@ def build_bond(db: SQLAlchemy) -> Model:
             self.dur_cell = dur_cell
             self.mv = mv
             self.effdur = effdur
+            self.cusip = (cusip,)
+            self.ticker = (ticker,)
+            self.mat_dt = mat_dt
 
     return Bond

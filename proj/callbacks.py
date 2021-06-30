@@ -224,24 +224,24 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         List[dict],
         List[dict],
     ]:
+        wt_cols_names = ["cusip", "ticker", "mat_dt", "wt"]
+        blanks = [{x: "--" for x in wt_cols_names}]
+        percentage = FormatTemplate.percentage(2)
+        wt_col_dicts = [
+            {"name": x, "id": y}
+            for x, y in zip(
+                ["Cusip", "Ticker", "Maturity date", "Weight"], wt_cols_names
+            )
+        ]
         if n_clicks is None or n_clicks == 0:
             return (
-                [{"opt_res": "--", "cash_wt": "--"}],
-                [{"ind_cusip": "--", "ind_wt": "--"}],
-                [{"fin_cusip": "--", "fin_wt": "--"}],
-                [{"utl_cusip": "--", "utl_wt": "--"}],
-                [
-                    {"name": "Cusip", "id": "ind_cusip"},
-                    {"name": "Weight", "id": "ind_wt"},
-                ],
-                [
-                    {"name": "Cusip", "id": "fin_cusip"},
-                    {"name": "Weight", "id": "fin_wt"},
-                ],
-                [
-                    {"name": "Cusip", "id": "utl_cusip"},
-                    {"name": "Weight", "id": "utl_wt"},
-                ],
+                [{x: "--" for x in ["opt_res", "cash_wt"]}],
+                blanks,
+                blanks,
+                blanks,
+                wt_col_dicts,
+                wt_col_dicts,
+                wt_col_dicts,
                 [
                     {"name": "Result", "id": "opt_res"},
                     {"name": "Cash weight", "id": "cash_wt"},
@@ -264,36 +264,30 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
             Bond.ytm,
             Bond.class_2,
             Bond.effdur,
+            Bond.mat_dt,
+            Bond.ticker,
         ).where(*where_clauses)
         try:
             result = list(db.session.execute(stmt))
         except IndexError:
             return (
                 [{"opt_res": "0", "cash_wt": 1}],
-                [{"ind_cusip": "--", "ind_wt": "--"}],
-                [{"fin_cusip": "--", "fin_wt": "--"}],
-                [{"utl_cusip": "--", "utl_wt": "--"}],
-                [
-                    {"name": "Cusip", "id": "ind_cusip"},
-                    {"name": "Weight", "id": "ind_wt"},
-                ],
-                [
-                    {"name": "Cusip", "id": "fin_cusip"},
-                    {"name": "Weight", "id": "fin_wt"},
-                ],
-                [
-                    {"name": "Cusip", "id": "utl_cusip"},
-                    {"name": "Weight", "id": "utl_wt"},
-                ],
+                blanks,
+                blanks,
+                blanks,
+                wt_col_dicts,
+                wt_col_dicts,
+                wt_col_dicts,
                 [
                     {"name": "Result", "id": "opt_res"},
-                    {"name": "Cash weight", "id": "cash_wt"},
+                    {"name": "Cash weight", "id": "cash_wt", "format": percentage},
                 ],
             )
         df = pd.DataFrame(
             result,
-            columns=["cusip", "oas", "ytm", "class_2", "effdur"],
+            columns=["cusip", "oas", "ytm", "class_2", "effdur", "mat_dt", "ticker"],
         )
+        df["mat_dt"] = pd.to_datetime(df["mat_dt"], format="%m/%d/%Y").dt.date
         df["oas"] = df["oas"].astype("float")
         df["ytm"] = df["ytm"].astype("float")
         df["effdur"] = df["effdur"].astype("float")
@@ -313,21 +307,12 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         if opt_results is None:
             return (
                 [{"opt_res": "Infeasible", "cash_wt": "--"}],
-                [{"ind_cusip": "--", "ind_wt": "--"}],
-                [{"fin_cusip": "--", "fin_wt": "--"}],
-                [{"utl_cusip": "--", "utl_wt": "--"}],
-                [
-                    {"name": "Cusip", "id": "ind_cusip"},
-                    {"name": "Weight", "id": "ind_wt"},
-                ],
-                [
-                    {"name": "Cusip", "id": "fin_cusip"},
-                    {"name": "Weight", "id": "fin_wt"},
-                ],
-                [
-                    {"name": "Cusip", "id": "utl_cusip"},
-                    {"name": "Weight", "id": "utl_wt"},
-                ],
+                blanks,
+                blanks,
+                blanks,
+                wt_col_dicts,
+                wt_col_dicts,
+                wt_col_dicts,
                 [
                     {"name": "Result", "id": "opt_res"},
                     {"name": "Cash weight", "id": "cash_wt"},
@@ -338,71 +323,67 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
 
         def get_sector_wts(
             sector_df: pd.DataFrame,
-            cusip_col: str,
-            wt_col: str,
         ) -> pd.DataFrame:
-            res_df = (
+            res_df: pd.DataFrame = (
                 sector_df.set_index("cusip")
-                .join(cusip_wts)[["wts"]]
+                .join(cusip_wts)[["ticker", "mat_dt", "wts"]]
                 .query("""wts > 0""")
-                .sort_values("wts", ascending=False)
+                .sort_values(
+                    ["wts", "ticker", "mat_dt"], ascending=[False, True, False]
+                )
                 .reset_index()
-                .rename(columns={"cusip": cusip_col, "wts": wt_col})
             )
-            return res_df.append(
-                pd.Series(["Total", res_df[wt_col].sum()], index=res_df.columns),
-                ignore_index=True,
-            )
+            return res_df
 
         industrial_res, financial_res, utility_res = [
-            get_sector_wts(sector_df, cusip_col, wt_col)
-            for sector_df, cusip_col, wt_col in zip(
-                [industrial_df, financial_df, utility_df],
-                ["ind_cusip", "fin_cusip", "utl_cusip"],
-                ["ind_wt", "fin_wt", "utl_wt"],
-            )
+            get_sector_wts(sector_df)
+            for sector_df in [industrial_df, financial_df, utility_df]
+        ]
+        industrial_total, financial_total, utility_total = [
+            df["wts"].sum() for df in [industrial_res, financial_res, utility_res]
         ]
 
-        cash_wt = 1 - sum(
-            [
-                industrial_res.iloc[-1]["ind_wt"],
-                financial_res.iloc[-1]["fin_wt"],
-                utility_res.iloc[-1]["utl_wt"],
-            ]
-        )
-        percentage = FormatTemplate.percentage(2)
+        cash_wt = 1 - (industrial_total + financial_total + utility_total)
+        non_blank_cols = [
+            {"name": "Cusip", "id": "cusip"},
+            {"name": "Ticker", "id": "ticker"},
+            {"name": "Maturity date", "id": "mat_dt"},
+            {"name": "Weight", "id": "wts", "type": "numeric", "format": percentage},
+        ]
+
+        def _nice_data_values(df: pd.DataFrame) -> pd.DataFrame:
+            """[summary]
+
+            Args:
+                df (pd.DataFrame): [description]
+
+            Returns:
+                pd.DataFrame: [description]
+            """
+            return blanks if df.empty else df.to_dict("records")
+
+        def _nice_col_types(df) -> Union[List[Dict[str, str]], dict]:
+            """Quick helper function to not keep writing the same conditionals over
+            and over; returns numeric types if the dataframe is non-empty, allows for
+            blanks when it is
+
+            Args:
+                df (pd.DataFrame): [description]
+
+            Returns:
+                Union[List[Dict[str, str]], dict]: nice numeric column types if the
+                input dataframe is not empty blanks if it is
+            """
+
+            return wt_col_dicts if df.empty else non_blank_cols
+
         return (
             [{"opt_res": res_max, "cash_wt": cash_wt}],
-            industrial_res.to_dict("records"),
-            financial_res.to_dict("records"),
-            utility_res.to_dict("records"),
-            [
-                {"name": "Cusip", "id": "ind_cusip"},
-                {
-                    "name": "Weight",
-                    "id": "ind_wt",
-                    "type": "numeric",
-                    "format": percentage,
-                },
+            *[
+                _nice_data_values(x)
+                for x in [industrial_res, financial_res, utility_res]
             ],
-            [
-                {"name": "Cusip", "id": "fin_cusip"},
-                {
-                    "name": "Weight",
-                    "id": "fin_wt",
-                    "type": "numeric",
-                    "format": percentage,
-                },
-            ],
-            [
-                {"name": "Cusip", "id": "utl_cusip"},
-                {
-                    "name": "Weight",
-                    "id": "utl_wt",
-                    "type": "numeric",
-                    "format": percentage,
-                },
-            ],
+            *[_nice_col_types(x) for x in [industrial_res, financial_res, utility_res]],
             [
                 {
                     "name": "Result",

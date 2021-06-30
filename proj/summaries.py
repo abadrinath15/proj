@@ -259,6 +259,8 @@ def generate_summary_layout(
                         style={"height": "50px", "width": "200px"},
                     ),
                     html.Div(style={"height": "20px"}),
+                    html.H3("Optmization Results"),
+                    html.Div(style={"height": "20px"}),
                     html.Div(
                         DataTable(
                             id="opt_summary",
@@ -277,9 +279,9 @@ def generate_summary_layout(
                 [
                     dbc.Row(
                         [
-                            dbc.Col(html.Label("Industrials Results")),
-                            dbc.Col(html.Label("Financials Results")),
-                            dbc.Col(html.Label("Utilities Results")),
+                            dbc.Col(html.Label("Industrials bond list")),
+                            dbc.Col(html.Label("Financials bond list")),
+                            dbc.Col(html.Label("Utilities bond list")),
                         ]
                     ),
                     dbc.Row(
@@ -287,28 +289,16 @@ def generate_summary_layout(
                             dbc.Col(
                                 DataTable(
                                     id="industrial_results",
-                                    columns=[
-                                        {"name": "Cusip", "id": "ind_cusip"},
-                                        {"name": "Weight", "id": "ind_wt"},
-                                    ],
                                 )
                             ),
                             dbc.Col(
                                 DataTable(
                                     id="financials_results",
-                                    columns=[
-                                        {"name": "Cusip", "id": "fin_cusip"},
-                                        {"name": "Weight", "id": "fin_wt"},
-                                    ],
                                 )
                             ),
                             dbc.Col(
                                 DataTable(
                                     id="utility_results",
-                                    columns=[
-                                        {"name": "Cusip", "id": "utl_cusip"},
-                                        {"name": "Weight", "id": "utl_wt"},
-                                    ],
                                 )
                             ),
                         ]
