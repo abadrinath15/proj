@@ -333,17 +333,23 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                 )
                 .reset_index()
             )
-            return res_df
+            return res_df.append(
+                pd.Series(
+                    ["--", "--", "Total", res_df["wts"].sum()], index=res_df.columns
+                ),
+                ignore_index=True,
+            )
 
         industrial_res, financial_res, utility_res = [
             get_sector_wts(sector_df)
             for sector_df in [industrial_df, financial_df, utility_df]
         ]
-        industrial_total, financial_total, utility_total = [
-            df["wts"].sum() for df in [industrial_res, financial_res, utility_res]
-        ]
 
-        cash_wt = 1 - (industrial_total + financial_total + utility_total)
+        cash_wt = 1 - (
+            industrial_res.iloc[-1]["wts"]
+            + financial_res.iloc[-1]["wts"]
+            + utility_res.iloc[-1]["wts"]
+        )
         non_blank_cols = [
             {"name": "Cusip", "id": "cusip"},
             {"name": "Ticker", "id": "ticker"},
