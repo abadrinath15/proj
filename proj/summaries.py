@@ -24,7 +24,7 @@ def generate_summary_layout(
             html.H1("Bond summary and optimization tool"),
             # Vertical spacing placeholder
             html.Div(style={"height": "50px"}),
-            html.H3("Bond selections for summary and optimizations"),
+            html.H3("Bond selections for summary and optimization"),
             html.Div(
                 [
                     html.Div(
@@ -186,7 +186,7 @@ def generate_summary_layout(
                                 html.Label("Security weight bound"), width=OPT_COL_WIDTH
                             ),
                             dbc.Col(
-                                html.Label("Portfolio duration bound ([3, 7])"),
+                                html.Label("Portfolio duration target ([3, 7])"),
                                 width=OPT_COL_WIDTH,
                             ),
                             dbc.Col(
@@ -256,8 +256,9 @@ def generate_summary_layout(
                     html.Button(
                         "Perform optimization",
                         id="opt_button",
-                        style={"height": "50px", "width": "100px"},
+                        style={"height": "50px", "width": "200px"},
                     ),
+                    html.Div(style={"height": "20px"}),
                     html.Div(
                         DataTable(
                             id="opt_summary",

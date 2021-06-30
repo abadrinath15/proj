@@ -12,7 +12,7 @@ def do_optimization(
     financial_df: pd.DataFrame,
     utility_df: pd.DataFrame,
     security_bound: float,
-    duration_bound: float,
+    duration_target: float,
     sector_bound: float,
     metric_col: str,
 ) -> Tuple[float, List[Tuple[str, float]]]:
@@ -41,7 +41,7 @@ def do_optimization(
     )
     # Duration bound
     my_problem += (
-        lpSum(full_weighted_vector("effdur")) == duration_bound,
+        lpSum(full_weighted_vector("effdur")) == duration_target,
         "Portfolio duration bound",
     )
     # Sector bounds
