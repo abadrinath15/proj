@@ -190,7 +190,7 @@ def generate_summary_layout(
                                 width=OPT_COL_WIDTH,
                             ),
                             dbc.Col(
-                                html.Label("Total sector limit ([0.20, 0.50])"),
+                                html.Label("Total sector limit ([20%, 50%])"),
                                 width=OPT_COL_WIDTH,
                             ),
                         ],
@@ -213,9 +213,9 @@ def generate_summary_layout(
                                 dcc.Dropdown(
                                     id="sec_bound",
                                     options=[
-                                        {"label": "0.01", "value": 0.01},
-                                        {"label": "0.02", "value": 0.02},
-                                        {"label": "0.03", "value": 0.03},
+                                        {"label": "1.00%", "value": 0.01},
+                                        {"label": "2.00%", "value": 0.02},
+                                        {"label": "3.00%", "value": 0.03},
                                     ],
                                     value=0.01,
                                 ),
@@ -237,10 +237,10 @@ def generate_summary_layout(
                                 dbc.Input(
                                     id="sector_limit",
                                     type="number",
-                                    min=0.20,
-                                    max=0.50,
-                                    value=0.35,
-                                    step=0.01,
+                                    min=20,
+                                    max=50,
+                                    value=35,
+                                    step=1,
                                     required=True,
                                 ),
                                 width=OPT_COL_WIDTH,

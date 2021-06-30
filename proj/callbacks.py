@@ -11,6 +11,7 @@ from dash.dependencies import Input, Output, State
 from dash_table import FormatTemplate
 from dash_table.Format import Format, Scheme
 from flask_sqlalchemy import Model, SQLAlchemy
+from dash_table import FormatTemplate
 from sqlalchemy import distinct, select, true
 from sqlalchemy.sql import func
 from itertools import chain
@@ -156,11 +157,27 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         Output("opt_button", "disabled"),
         Input("duration_target", "value"),
         Input("sector_limit", "value"),
+        State("duration_target", "min"),
+        State("duration_target", "max"),
+        State("sector_limit", "min"),
+        State("sector_limit", "max"),
     )
     def enable_opt_button(
-        duration_target: Optional[float], sector_limit: Optional[float]
+        duration_target: Optional[float],
+        sector_limit: Optional[float],
+        dur_min: float,
+        dur_max: float,
+        sector_min: float,
+        sector_max: float,
     ) -> bool:
-        if duration_target is None or sector_limit is None:
+        if (duration_target is None or sector_limit is None) or any(
+            [
+                duration_target < dur_min,
+                duration_target > dur_max,
+                sector_limit < sector_min,
+                sector_limit > sector_max,
+            ]
+        ):
             return True
         return False
 
@@ -170,6 +187,10 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
             Output("industrial_results", "data"),
             Output("financials_results", "data"),
             Output("utility_results", "data"),
+            Output("industrial_results", "columns"),
+            Output("financials_results", "columns"),
+            Output("utility_results", "columns"),
+            Output("opt_summary", "columns"),
         ),
         Input("opt_button", "n_clicks"),
         State("date_filter", "value"),
@@ -198,6 +219,10 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         List[Dict[str, Union[str, float]]],
         List[Dict[str, Union[str, float]]],
         List[Dict[str, Union[str, float]]],
+        List[dict],
+        List[dict],
+        List[dict],
+        List[dict],
     ]:
         if n_clicks is None or n_clicks == 0:
             return (
@@ -205,7 +230,25 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                 [{"ind_cusip": "--", "ind_wt": "--"}],
                 [{"fin_cusip": "--", "fin_wt": "--"}],
                 [{"utl_cusip": "--", "utl_wt": "--"}],
+                [
+                    {"name": "Cusip", "id": "ind_cusip"},
+                    {"name": "Weight", "id": "ind_wt"},
+                ],
+                [
+                    {"name": "Cusip", "id": "fin_cusip"},
+                    {"name": "Weight", "id": "fin_wt"},
+                ],
+                [
+                    {"name": "Cusip", "id": "utl_cusip"},
+                    {"name": "Weight", "id": "utl_wt"},
+                ],
+                [
+                    {"name": "Result", "id": "opt_res"},
+                    {"name": "Cash weight", "id": "cash_wt"},
+                ],
             )
+        # Rescale sector limit to be a percentage
+        sector_limit = sector_limit / 100
         _, class_obj = CLASS_DICT[class_type]
         where_clauses = [
             Bond.eff_date == date_value,
@@ -230,6 +273,22 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                 [{"ind_cusip": "--", "ind_wt": "--"}],
                 [{"fin_cusip": "--", "fin_wt": "--"}],
                 [{"utl_cusip": "--", "utl_wt": "--"}],
+                [
+                    {"name": "Cusip", "id": "ind_cusip"},
+                    {"name": "Weight", "id": "ind_wt"},
+                ],
+                [
+                    {"name": "Cusip", "id": "fin_cusip"},
+                    {"name": "Weight", "id": "fin_wt"},
+                ],
+                [
+                    {"name": "Cusip", "id": "utl_cusip"},
+                    {"name": "Weight", "id": "utl_wt"},
+                ],
+                [
+                    {"name": "Result", "id": "opt_res"},
+                    {"name": "Cash weight", "id": "cash_wt"},
+                ],
             )
         df = pd.DataFrame(
             result,
@@ -257,6 +316,22 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                 [{"ind_cusip": "--", "ind_wt": "--"}],
                 [{"fin_cusip": "--", "fin_wt": "--"}],
                 [{"utl_cusip": "--", "utl_wt": "--"}],
+                [
+                    {"name": "Cusip", "id": "ind_cusip"},
+                    {"name": "Weight", "id": "ind_wt"},
+                ],
+                [
+                    {"name": "Cusip", "id": "fin_cusip"},
+                    {"name": "Weight", "id": "fin_wt"},
+                ],
+                [
+                    {"name": "Cusip", "id": "utl_cusip"},
+                    {"name": "Weight", "id": "utl_wt"},
+                ],
+                [
+                    {"name": "Result", "id": "opt_res"},
+                    {"name": "Cash weight", "id": "cash_wt"},
+                ],
             )
         res_max, cusip_wts = opt_results
         cusip_wts = pd.DataFrame(cusip_wts, columns=["cusip", "wts"]).set_index("cusip")
@@ -295,9 +370,51 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
                 utility_res.iloc[-1]["utl_wt"],
             ]
         )
+        percentage = FormatTemplate.percentage(2)
         return (
             [{"opt_res": res_max, "cash_wt": cash_wt}],
             industrial_res.to_dict("records"),
             financial_res.to_dict("records"),
             utility_res.to_dict("records"),
+            [
+                {"name": "Cusip", "id": "ind_cusip"},
+                {
+                    "name": "Weight",
+                    "id": "ind_wt",
+                    "type": "numeric",
+                    "format": percentage,
+                },
+            ],
+            [
+                {"name": "Cusip", "id": "fin_cusip"},
+                {
+                    "name": "Weight",
+                    "id": "fin_wt",
+                    "type": "numeric",
+                    "format": percentage,
+                },
+            ],
+            [
+                {"name": "Cusip", "id": "utl_cusip"},
+                {
+                    "name": "Weight",
+                    "id": "utl_wt",
+                    "type": "numeric",
+                    "format": percentage,
+                },
+            ],
+            [
+                {
+                    "name": "Result",
+                    "id": "opt_res",
+                    "type": "numeric",
+                    "format": Format(precision=2, scheme=Scheme.fixed),
+                },
+                {
+                    "name": "Cash weight",
+                    "id": "cash_wt",
+                    "type": "numeric",
+                    "format": percentage,
+                },
+            ],
         )
