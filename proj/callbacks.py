@@ -18,7 +18,16 @@ from itertools import chain
 from optimization import do_optimization
 
 
-def register_callbacks(app, db: SQLAlchemy, Bond: Model):
+def register_callbacks(app, db: SQLAlchemy, Bond: Model) -> None:
+    """Avoid circular importsby passing in the application, database, and bond model
+    and create the callbacks from them (essentially a decorator pattern)
+
+    Args:
+        app: dash dash application
+        db (SQLAlchemy): sqlalchmey db object
+        Bond (Model): bond model
+
+    """
     # Quick dictionary to reduce conditional bond_object lookups
     CLASS_DICT: Final = {
         "class_1": [html.Label("Class 1 choice"), Bond.class_1],
@@ -42,6 +51,17 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         date_value: dt.date,
         class_type: Optional[str],
     ) -> Tuple[html.Div, List[Dict[str, str]], bool, None]:
+        """Update class filter dropdown to reflect choice of class type and date
+
+        Args:
+            date_value (dt.date): date selected
+            class_type (Optional[str]): class type selected, ex class_1
+
+        Returns:
+            Tuple[html.Div, List[Dict[str, str]], bool, None]: Tuple of: label above
+            the class filter box, class filter options, class filter box enabledness,
+            class filter value placeholder
+        """
         if class_type is None:
             return html.Label("Class value"), [], True, None
 
@@ -80,6 +100,21 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         List[dict[str, Union[str, int]]],
         List[dict],
     ]:
+        """Refresh summary table contents upon changing options
+
+        Args:
+            date_value (dt.datetime): date selected
+            class_values (Optional[List[str]]): class selected, may be none
+            rating_values (Optional[List[str]]): ratings values selected, may be none
+            dur_cell_values (Optional[List[str]]): duration cell values selected, may
+            be none
+            class_type (Optional[str]): class type, does not refresh upon change as
+            the class value really determines a selection
+
+        Returns:
+            Tuple[ List[dict[str, Union[str, int]]], List[dict],
+            List[dict[str, Union[str, int]]], List[dict], ]: [description]
+        """
         col_names = [
             "Measure",
             "Minimum",
@@ -170,6 +205,20 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         sector_min: float,
         sector_max: float,
     ) -> bool:
+        """Blocks the optimization button if invalid duration/sector values are
+        selected
+
+        Args:
+            duration_target (Optional[float]): duration value
+            sector_limit (Optional[float]): sector value
+            dur_min (float): duration min boundary
+            dur_max (float): duration max boundary
+            sector_min (float): sector min boundary
+            sector_max (float): sector max boundary
+
+        Returns:
+            bool: True to disable button, false to enable it
+        """
         if (duration_target is None or sector_limit is None) or any(
             [
                 duration_target < dur_min,
@@ -224,6 +273,23 @@ def register_callbacks(app, db: SQLAlchemy, Bond: Model):
         List[dict],
         List[dict],
     ]:
+        """Reads inputs/filters to optimization routine and outputs to tables
+
+        Args:
+            n_clicks (Optional[int]): placeholder for checking if button is clicked
+            date_value (dt.date): date selected
+            class_type (str): class selected
+            class_values (Optional[List[str]]): class values
+            rating_values (Optional[List[str]]): ratings values
+            dur_cell_values (Optional[List[str]]): duration cell values
+            opt_metric (str): optimization metricj
+            sec_bound (float): single security weight constraint
+            duration_bound (float): duration target
+            sector_limit (float): sector limit constraint
+
+        Returns:
+            Tuple[ List[Dict[str, Union[str, float]]], List[Dict[str, Union[str, float]]], List[Dict[str, Union[str, float]]], List[Dict[str, Union[str, float]]], List[dict], List[dict], List[dict], List[dict], ]: [description]
+        """
         wt_cols_names = ["cusip", "ticker", "mat_dt", "wt"]
         blanks = [{x: "--" for x in wt_cols_names}]
         percentage = FormatTemplate.percentage(2)
